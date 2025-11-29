@@ -97,6 +97,8 @@ Prioritize:
 
 User is in the mood for: "${query}".
 
+For each recommended restaurant, also describe ONE specific macro-friendly dish or way to order there (for example, "grilled chicken bowl with extra veggies, light sauce") and briefly explain why it fits the calorie/protein goal with a rough qualitative macro estimate (e.g. "roughly 550–650 kcal, 35–45g protein").
+
 Return businesses that are a good fit for this goal and craving.`,
         user_context: {
           locale: "en_US",

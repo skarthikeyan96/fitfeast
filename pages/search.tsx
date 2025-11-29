@@ -16,6 +16,11 @@ export default function SearchPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [results, setResults] = useState<RestaurantOption[]>([]);
+  const [userId, setUserId] = useState<string | null>(null);
+  const [logMessage, setLogMessage] = useState<string | null>(null);
+
+  // Placeholder auth flag. When real auth is wired, flip this based on session.
+  const isAuthed = false;
 
   // On first load, hydrate form state from query parameters if provided
   useEffect(() => {
@@ -51,12 +56,28 @@ export default function SearchPage() {
     }
   }, [router.isReady, router.query]);
 
+  // Initialize a simple demo user id for logging meals (no real auth yet)
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    const existing = window.localStorage.getItem("feastfit_demo_user_id");
+    if (existing) {
+      setUserId(existing);
+      return;
+    }
+
+    const generated = `demo-${Math.random().toString(36).slice(2, 10)}`;
+    window.localStorage.setItem("feastfit_demo_user_id", generated);
+    setUserId(generated);
+  }, []);
+
   const handleSearch = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     setError(null);
 
     try {
+      setLogMessage(null);
       const res = await fetch("/api/search-restaurants", {
         method: "POST",
         headers: {
@@ -83,6 +104,88 @@ export default function SearchPage() {
       setError(err.message || "Something went wrong");
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleLogMeal = async (
+    restaurant: RestaurantOption,
+    dish: DishOption
+  ) => {
+    setLogMessage(null);
+
+    try {
+      if (!isAuthed) {
+        // Guest flow: store logs in localStorage only.
+        if (typeof window === "undefined") return;
+
+        const key = "feastfit_guest_logs_v1";
+        const raw = window.localStorage.getItem(key);
+        const existing: any[] = raw ? JSON.parse(raw) : [];
+
+        const entry = {
+          id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+          createdAt: new Date().toISOString(),
+          restaurantId: restaurant.id,
+          restaurantName: restaurant.name,
+          restaurantUrl: restaurant.url,
+          restaurantAddress: restaurant.address,
+          fitScore: restaurant.fitScore,
+          fitLabel: restaurant.fitLabel,
+          dishName: dish.name,
+          calories: dish.estimatedCalories,
+          protein: dish.estimatedProtein,
+          carbs: dish.estimatedCarbs,
+          fat: dish.estimatedFat,
+          mealType: "lunch",
+          locationText: location,
+          source: "guest-local",
+        };
+
+        existing.unshift(entry);
+        window.localStorage.setItem(key, JSON.stringify(existing));
+        setLogMessage("Meal saved locally for this guest session.");
+        return;
+      }
+
+      // Authed flow: send to Supabase via API (not yet wired to real auth).
+      if (!userId) return;
+
+      const res = await fetch("/api/log-meal", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          userId,
+          restaurant: {
+            id: restaurant.id,
+            name: restaurant.name,
+            url: restaurant.url,
+            address: restaurant.address,
+            fitScore: restaurant.fitScore,
+            fitLabel: restaurant.fitLabel,
+          },
+          dish: {
+            name: dish.name,
+            estimatedCalories: dish.estimatedCalories,
+            estimatedProtein: dish.estimatedProtein,
+            estimatedCarbs: dish.estimatedCarbs,
+            estimatedFat: dish.estimatedFat,
+          },
+          mealType: "lunch",
+          locationText: location,
+        }),
+      });
+
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.error || "Failed to log meal");
+      }
+
+      setLogMessage("Meal logged to your FeastFit account.");
+    } catch (err: any) {
+      console.error(err);
+      setLogMessage(err.message || "Failed to log meal");
     }
   };
 
@@ -173,6 +276,12 @@ export default function SearchPage() {
           </div>
         )}
 
+        {logMessage && (
+          <div className="mb-4 rounded-md border border-emerald-500/50 bg-emerald-950/40 px-3 py-2 text-xs text-emerald-200">
+            {logMessage}
+          </div>
+        )}
+
         <section className="space-y-4">
           {results.map((restaurant) => (
             <article
@@ -221,7 +330,12 @@ export default function SearchPage() {
 
                   <div className="mt-3 space-y-2">
                     {restaurant.dishes.map((dish) => (
-                      <DishCard key={dish.name} dish={dish} />
+                      <DishCard
+                        key={dish.name}
+                        dish={dish}
+                        canLog={!!userId}
+                        onLog={() => handleLogMeal(restaurant, dish)}
+                      />
                     ))}
                   </div>
 
@@ -251,7 +365,15 @@ export default function SearchPage() {
   );
 }
 
-function DishCard({ dish }: { dish: DishOption }) {
+function DishCard({
+  dish,
+  canLog,
+  onLog,
+}: {
+  dish: DishOption;
+  canLog?: boolean;
+  onLog?: () => void;
+}) {
   return (
     <div className="rounded-lg border border-slate-800 bg-slate-950/60 p-3 text-sm">
       <div className="flex items-baseline justify-between gap-2">
@@ -263,7 +385,7 @@ function DishCard({ dish }: { dish: DishOption }) {
       {dish.description && (
         <p className="mt-1 text-xs text-slate-400">{dish.description}</p>
       )}
-      <div className="mt-2 flex flex-wrap gap-3 text-xs text-slate-300">
+      <div className="mt-2 flex flex-wrap gap-3 text-xs text-slate-300 items-center">
         <span>Protein: {dish.estimatedProtein} g</span>
         {dish.estimatedCarbs != null && (
           <span>Carbs: {dish.estimatedCarbs} g</span>
@@ -272,6 +394,15 @@ function DishCard({ dish }: { dish: DishOption }) {
         <span className="text-slate-500">
           Confidence: {(dish.confidence * 100).toFixed(0)}%
         </span>
+        {canLog && onLog && (
+          <button
+            type="button"
+            onClick={onLog}
+            className="ml-auto inline-flex items-center rounded-md border border-emerald-500/60 px-2 py-0.5 text-[11px] font-medium text-emerald-300 hover:bg-emerald-500/10"
+          >
+            Log this meal
+          </button>
+        )}
       </div>
     </div>
   );

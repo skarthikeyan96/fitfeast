@@ -153,7 +153,19 @@ export default function SearchPage() {
                 )}
                 <div className="p-4 space-y-2">
                   <div className="flex items-baseline justify-between gap-2">
-                    <h2 className="text-lg font-semibold">{restaurant.name}</h2>
+                    <div className="space-y-1">
+                      <h2 className="text-lg font-semibold">
+                        {restaurant.name}
+                      </h2>
+                      <div className="flex flex-wrap items-center gap-2 text-xs">
+                        <span className="inline-flex items-center rounded-full bg-emerald-500/10 px-2 py-0.5 text-emerald-300 border border-emerald-500/40">
+                          {restaurant.fitLabel}
+                          <span className="ml-1 text-[10px] text-emerald-400/80">
+                            {restaurant.fitScore}
+                          </span>
+                        </span>
+                      </div>
+                    </div>
                     <span className="text-sm text-emerald-300">
                       ⭐ {restaurant.rating.toFixed(1)}
                     </span>

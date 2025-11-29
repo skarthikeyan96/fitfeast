@@ -30,6 +30,10 @@ export type RestaurantOption = {
   imageUrl?: string;
   address?: string;
   dishes: DishOption[];
+  /** 0–100 score indicating how well this place matches the user's macro target. */
+  fitScore: number;
+  /** Short label for the fit score, e.g. "Perfect fit", "Good fit". */
+  fitLabel: string;
   reason: string;
 };
 
@@ -121,6 +125,27 @@ export default async function handler(
       businesses = yelpData.entities.business_search.businesses as any[];
     }
 
+    const computeFit = (calories: number, protein: number) => {
+      const calorieDiff = Math.abs(caloriesTarget - calories);
+      const calorieScore =
+        1 - Math.min(calorieDiff / Math.max(caloriesTarget, 1), 1);
+
+      const proteinDelta = protein - proteinMin;
+      const proteinScore =
+        proteinDelta >= 0
+          ? 1
+          : Math.max(1 + proteinDelta / Math.max(proteinMin, 1), 0);
+
+      const score = Math.round((calorieScore * 0.7 + proteinScore * 0.3) * 100);
+
+      let label: string;
+      if (score >= 85) label = "Perfect fit";
+      else if (score >= 65) label = "Good fit";
+      else label = "Decent fit";
+
+      return { score, label };
+    };
+
     let restaurants: RestaurantOption[] = (businesses as any[])
       .slice(0, 5)
       .map((b, idx) => {
@@ -130,6 +155,12 @@ export default async function handler(
 
         const businessContext = b?.contextual_info ?? {};
         const summaries = b?.summaries ?? {};
+
+        // For now we approximate dish macros with the user's target.
+        const { score: fitScore, label: fitLabel } = computeFit(
+          caloriesTarget,
+          proteinMin
+        );
 
         return {
           id: b.id ?? `biz-${idx}`,
@@ -157,6 +188,8 @@ export default async function handler(
               confidence: 0.5,
             },
           ],
+          fitScore,
+          fitLabel,
           reason:
             businessContext.summary ||
             summaries.short ||
@@ -167,6 +200,11 @@ export default async function handler(
     // Fallback: if Yelp AI didn't return any parsable businesses, provide one mock
     // restaurant so the UI still demonstrates the flow.
     if (!restaurants.length) {
+      const { score: fitScore, label: fitLabel } = computeFit(
+        caloriesTarget,
+        proteinMin
+      );
+
       restaurants = [
         {
           id: "fallback-mock-1",
@@ -187,6 +225,8 @@ export default async function handler(
               confidence: 0.3,
             },
           ],
+          fitScore,
+          fitLabel,
           reason:
             "Fallback result shown because Yelp AI did not return structured businesses.",
         },

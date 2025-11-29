@@ -85,9 +85,19 @@ export default async function handler(
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        query: `Find macro-friendly restaurants near me. Target ~${caloriesTarget} calories, at least ${proteinMin}g protein. Diet: ${
-          diet || "none"
-        }. User query: ${query}`,
+        query: `You are FeastFit, a fitness nutrition guide. Recommend nearby restaurants that are macro-friendly and work well for someone tracking calories and protein.
+
+Target for this single meal: about ${caloriesTarget} calories and at least ${proteinMin}g protein.
+Dietary preference: ${diet || "none specified"}.
+
+Prioritize:
+- higher-protein mains (grilled or lean meats, fish, tofu, legumes)
+- bowls, plates, or salads with a clear protein anchor
+- fewer deep-fried or ultra-heavy options by default
+
+User is in the mood for: "${query}".
+
+Return businesses that are a good fit for this goal and craving.`,
         user_context: {
           locale: "en_US",
           latitude,

@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { useRouter } from "next/router";
 import type {
   DishOption,
   RestaurantOption,
@@ -6,6 +7,7 @@ import type {
 } from "./api/search-restaurants";
 
 export default function SearchPage() {
+  const router = useRouter();
   const [location, setLocation] = useState("San Francisco, CA");
   const [caloriesTarget, setCaloriesTarget] = useState(600);
   const [proteinMin, setProteinMin] = useState(35);
@@ -14,6 +16,40 @@ export default function SearchPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [results, setResults] = useState<RestaurantOption[]>([]);
+
+  // On first load, hydrate form state from query parameters if provided
+  useEffect(() => {
+    if (!router.isReady) return;
+
+    const {
+      location: qLocation,
+      caloriesTarget: qCalories,
+      proteinMin: qProtein,
+      diet: qDiet,
+    } = router.query;
+
+    if (typeof qLocation === "string" && qLocation.trim()) {
+      setLocation(qLocation);
+    }
+
+    if (typeof qCalories === "string") {
+      const num = Number(qCalories);
+      if (!Number.isNaN(num) && num > 0) {
+        setCaloriesTarget(num);
+      }
+    }
+
+    if (typeof qProtein === "string") {
+      const num = Number(qProtein);
+      if (!Number.isNaN(num) && num > 0) {
+        setProteinMin(num);
+      }
+    }
+
+    if (typeof qDiet === "string" && qDiet.trim()) {
+      setDiet(qDiet);
+    }
+  }, [router.isReady, router.query]);
 
   const handleSearch = async (e: React.FormEvent) => {
     e.preventDefault();

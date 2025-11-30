@@ -109,6 +109,33 @@ export default function SearchPage() {
 
       const data: SearchRestaurantsResponse = await res.json();
       setResults(data.restaurants || []);
+      // Store a compact snapshot for the coach to read later.
+      const compact = {
+        location,
+        caloriesTarget,
+        proteinMin,
+        diet,
+        query,
+        timestamp: new Date().toISOString(),
+        restaurants: data.restaurants.slice(0, 5).map((r) => ({
+          name: r.name,
+          rating: r.rating,
+          fitScore: r.fitScore,
+          fitLabel: r.fitLabel,
+          dishes: r.dishes.slice(0, 2).map((d) => ({
+            name: d.name,
+            estimatedCalories: d.estimatedCalories,
+            estimatedProtein: d.estimatedProtein,
+            confidence: d.confidence,
+          })),
+        })),
+      };
+      if (typeof window !== "undefined") {
+        window.localStorage.setItem(
+          "feastfit_last_search",
+          JSON.stringify(compact)
+        );
+      }
     } catch (err: any) {
       console.error(err);
       setError(err.message || "Something went wrong");

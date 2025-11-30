@@ -1,9 +1,9 @@
 import "@/styles/globals.css";
 import type { AppProps } from "next/app";
-import Link from "next/link";
 import { useRouter } from "next/router";
 import { useEffect, useState } from "react";
 import { Inter, Geist_Mono } from "next/font/google";
+import { SearchHeader } from "./components/search-header";
 
 // Load Google Fonts
 const inter = Inter({
@@ -45,45 +45,11 @@ function Shell({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
-  const hasUser =
-    mounted &&
-    typeof window !== "undefined" &&
-    !!window.localStorage.getItem("feastfit_user_id");
-
   return (
     <div
-      className={`min-h-screen bg-slate-950 text-slate-100 ${inter.variable} ${geistMono.variable} font-sans`}
+      className={`min-h-screen bg-background text-foreground ${inter.variable} ${geistMono.variable} font-sans`}
     >
-      {!isHomePage && (
-        <header className="border-b border-slate-800 bg-slate-950/80 backdrop-blur">
-          <div className="mx-auto flex max-w-5xl items-center justify-between px-4 py-3 text-sm">
-            <Link
-              href="/"
-              className="font-semibold tracking-tight text-emerald-300"
-            >
-              FeastFit
-            </Link>
-            <nav className="flex items-center gap-4 text-xs text-slate-300">
-              <Link href="/" className="hover:text-emerald-300">
-                Home
-              </Link>
-              <Link href="/search" className="hover:text-emerald-300">
-                Search
-              </Link>
-              <Link href="/logs" className="hover:text-emerald-300">
-                Logs
-              </Link>
-              <Link href="/coach" className="hover:text-emerald-300">
-                Coach
-              </Link>
-
-              <Link href="/login" className="hover:text-emerald-300">
-                {hasUser ? "Account" : "Login"}
-              </Link>
-            </nav>
-          </div>
-        </header>
-      )}
+      {!isHomePage && <SearchHeader />}
       {children}
     </div>
   );

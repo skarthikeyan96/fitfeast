@@ -1,5 +1,6 @@
 import { Button } from "@/components/ui/button";
 import { ArrowRight, Play } from "lucide-react";
+import Link from "next/link";
 
 export function HeroSection() {
   return (
@@ -39,13 +40,13 @@ export function HeroSection() {
 
         {/* CTA buttons */}
         <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
-          <Button
-            size="lg"
-            className="h-12 px-8 text-base font-semibold bg-primary hover:bg-primary/90 text-primary-foreground"
+          <Link
+            href="/search"
+            className="h-12 px-8 text-base font-semibold bg-primary hover:bg-primary/90 text-primary-foreground inline-flex items-center justify-center gap-2"
           >
             Try FeastFit
             <ArrowRight className="ml-2 h-4 w-4" />
-          </Button>
+          </Link>
           <Button
             size="lg"
             variant="outline"

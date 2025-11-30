@@ -19,6 +19,9 @@ export default function SearchPage() {
   const [userId, setUserId] = useState<string | null>(null);
   const [logMessage, setLogMessage] = useState<string | null>(null);
   const [isAuthed, setIsAuthed] = useState(false);
+  const [refineMessage, setRefineMessage] = useState("");
+  const [refineLoading, setRefineLoading] = useState(false);
+  const [refineResponse, setRefineResponse] = useState<string | null>(null);
 
   // On first load, hydrate form state from query parameters if provided
   useEffect(() => {
@@ -196,6 +199,48 @@ export default function SearchPage() {
     }
   };
 
+  const handleRefine = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    if (!refineMessage.trim()) return;
+
+    setRefineLoading(true);
+    setRefineResponse(null);
+    setError(null);
+
+    try {
+      const res = await fetch("/api/refine-results", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          location,
+          caloriesTarget,
+          proteinMin,
+          diet: diet ?? undefined,
+          query,
+          refineMessage,
+          restaurants: results,
+        }),
+      });
+
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.error || "Failed to refine results");
+      }
+
+      const data = (await res.json()) as { message: string };
+      setRefineResponse(data.message);
+      setRefineMessage("");
+    } catch (err: any) {
+      console.error(err);
+      setError(err.message || "Failed to refine results");
+    } finally {
+      setRefineLoading(false);
+    }
+  };
+
   return (
     <main className="min-h-screen bg-slate-950 text-slate-100">
       <div className="mx-auto max-w-4xl px-4 py-10">
@@ -367,6 +412,44 @@ export default function SearchPage() {
             </p>
           )}
         </section>
+
+        {results.length > 0 && (
+          <section className="mt-8 space-y-3 rounded-xl border border-slate-800 bg-slate-900/70 p-4 text-sm">
+            <h2 className="text-sm font-semibold text-slate-100">
+              Refine these results with FeastFit
+            </h2>
+            <p className="text-xs text-slate-400">
+              Ask in your own words, e.g. "Make it lower carb" or "Prefer
+              something closer to 800 kcal but still high protein".
+            </p>
+            <form
+              onSubmit={handleRefine}
+              className="flex flex-col gap-2 md:flex-row"
+            >
+              <input
+                className="flex-1 rounded-md border border-slate-700 bg-slate-950 px-3 py-2 text-xs outline-none focus:border-emerald-400"
+                placeholder="How would you like to adjust these options?"
+                value={refineMessage}
+                onChange={(e) => setRefineMessage(e.target.value)}
+              />
+              <button
+                type="submit"
+                disabled={refineLoading || !refineMessage.trim()}
+                className="inline-flex items-center justify-center rounded-md bg-emerald-500 px-3 py-2 text-xs font-semibold text-slate-950 shadow hover:bg-emerald-400 disabled:opacity-60"
+              >
+                {refineLoading ? "Refining…" : "Refine"}
+              </button>
+            </form>
+            {refineResponse && (
+              <div className="mt-2 rounded-md border border-emerald-500/40 bg-emerald-950/40 p-3 text-xs text-emerald-100 whitespace-pre-line">
+                <div className="mb-1 text-[10px] font-semibold uppercase tracking-wide text-emerald-400/80">
+                  Refined by Yelp AI
+                </div>
+                {refineResponse}
+              </div>
+            )}
+          </section>
+        )}
       </div>
     </main>
   );

@@ -18,9 +18,7 @@ export default function SearchPage() {
   const [results, setResults] = useState<RestaurantOption[]>([]);
   const [userId, setUserId] = useState<string | null>(null);
   const [logMessage, setLogMessage] = useState<string | null>(null);
-
-  // Placeholder auth flag. When real auth is wired, flip this based on session.
-  const isAuthed = false;
+  const [isAuthed, setIsAuthed] = useState(false);
 
   // On first load, hydrate form state from query parameters if provided
   useEffect(() => {
@@ -56,19 +54,28 @@ export default function SearchPage() {
     }
   }, [router.isReady, router.query]);
 
-  // Initialize a simple demo user id for logging meals (no real auth yet)
+  // Initialize auth state: prefer authed Supabase user, otherwise create a guest id
   useEffect(() => {
     if (typeof window === "undefined") return;
 
-    const existing = window.localStorage.getItem("feastfit_demo_user_id");
-    if (existing) {
-      setUserId(existing);
+    const authedId = window.localStorage.getItem("feastfit_user_id");
+    if (authedId) {
+      setUserId(authedId);
+      setIsAuthed(true);
       return;
     }
 
-    const generated = `demo-${Math.random().toString(36).slice(2, 10)}`;
-    window.localStorage.setItem("feastfit_demo_user_id", generated);
-    setUserId(generated);
+    const existingGuest = window.localStorage.getItem("feastfit_demo_user_id");
+    if (existingGuest) {
+      setUserId(existingGuest);
+      setIsAuthed(false);
+      return;
+    }
+
+    const generatedGuest = `demo-${Math.random().toString(36).slice(2, 10)}`;
+    window.localStorage.setItem("feastfit_demo_user_id", generatedGuest);
+    setUserId(generatedGuest);
+    setIsAuthed(false);
   }, []);
 
   const handleSearch = async (e: React.FormEvent) => {

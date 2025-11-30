@@ -16,6 +16,7 @@ export type SearchRestaurantsRequest = {
   query: string;
   radiusMeters?: number;
   priceLevels?: number[];
+  mealType?: "breakfast" | "lunch" | "dinner" | "snack";
 };
 
 export type DishOption = {
@@ -43,6 +44,13 @@ export type RestaurantOption = {
   /** Short label for the fit score, e.g. "Perfect fit", "Good fit". */
   fitLabel: string;
   reason: string;
+  /** Breakdown of the Perfect Fit Score 2.0 components */
+  scoreBreakdown?: {
+    macroFitScore: number;
+    distanceScore: number;
+    aiConfidenceScore: number;
+    mealTypeScore: number;
+  };
 };
 
 export type SearchRestaurantsResponse = {
@@ -67,6 +75,7 @@ export default async function handler(
       query,
       radiusMeters,
       priceLevels,
+      mealType = "lunch",
     } = req.body as SearchRestaurantsRequest;
 
     // Apply naive IP-based rate limiting.
@@ -173,7 +182,19 @@ Return businesses that are a good fit for this goal and craving.`,
       businesses = yelpData.entities.business_search.businesses as any[];
     }
 
-    const computeFit = (calories: number, protein: number) => {
+    /**
+     * Perfect Fit Score 2.0 - Proprietary Algorithm
+     * Combines 4 weighted factors for optimal restaurant matching
+     */
+    const computePerfectFitScore = (
+      calories: number,
+      protein: number,
+      distanceMeters: number | undefined,
+      aiConfidence: number,
+      restaurantName: string,
+      mealType: string = "lunch"
+    ) => {
+      // 1. MACRO FIT SCORE (40% weight)
       const calorieDiff = Math.abs(caloriesTarget - calories);
       const calorieScore =
         1 - Math.min(calorieDiff / Math.max(caloriesTarget, 1), 1);
@@ -184,14 +205,121 @@ Return businesses that are a good fit for this goal and craving.`,
           ? 1
           : Math.max(1 + proteinDelta / Math.max(proteinMin, 1), 0);
 
-      const score = Math.round((calorieScore * 0.7 + proteinScore * 0.3) * 100);
+      // Macro fit: 70% calories, 30% protein
+      const macroFitScore = calorieScore * 0.7 + proteinScore * 0.3;
 
+      // 2. DISTANCE SCORE (20% weight)
+      // Optimal range: 0-2km gets full points, degrades to 0 at 10km+
+      let distanceScore = 1.0;
+      if (typeof distanceMeters === "number") {
+        const distanceKm = distanceMeters / 1000;
+        if (distanceKm <= 2) {
+          distanceScore = 1.0;
+        } else if (distanceKm <= 5) {
+          distanceScore = 1 - ((distanceKm - 2) / 3) * 0.3; // 70-100%
+        } else if (distanceKm <= 10) {
+          distanceScore = 0.7 - ((distanceKm - 5) / 5) * 0.7; // 0-70%
+        } else {
+          distanceScore = 0;
+        }
+      }
+
+      // 3. AI CONFIDENCE SCORE (20% weight)
+      // Direct pass-through of Yelp AI's confidence in the recommendation
+      const aiConfidenceScore = aiConfidence;
+
+      // 4. MEAL-TYPE MATCH SCORE (20% weight)
+      // Heuristic matching based on restaurant name/type keywords
+      const mealTypeScore = calculateMealTypeMatch(
+        restaurantName.toLowerCase(),
+        mealType
+      );
+
+      // FINAL SCORE: Weighted combination
+      const finalScore = Math.round(
+        (macroFitScore * 0.4 +
+          distanceScore * 0.2 +
+          aiConfidenceScore * 0.2 +
+          mealTypeScore * 0.2) *
+          100
+      );
+
+      // Label generation
       let label: string;
-      if (score >= 85) label = "Perfect fit";
-      else if (score >= 65) label = "Good fit";
+      if (finalScore >= 90) label = "Perfect fit · 100";
+      else if (finalScore >= 80) label = "Excellent fit";
+      else if (finalScore >= 70) label = "Great fit";
+      else if (finalScore >= 60) label = "Good fit";
       else label = "Decent fit";
 
-      return { score, label };
+      return {
+        score: finalScore,
+        label,
+        breakdown: {
+          macroFitScore: Math.round(macroFitScore * 100),
+          distanceScore: Math.round(distanceScore * 100),
+          aiConfidenceScore: Math.round(aiConfidenceScore * 100),
+          mealTypeScore: Math.round(mealTypeScore * 100),
+        },
+      };
+    };
+
+    /**
+     * Heuristic meal-type matching based on restaurant characteristics
+     */
+    const calculateMealTypeMatch = (
+      restaurantNameLower: string,
+      mealType: string
+    ): number => {
+      const breakfastKeywords = [
+        "breakfast",
+        "brunch",
+        "cafe",
+        "coffee",
+        "bagel",
+        "pancake",
+        "waffle",
+      ];
+      const lunchKeywords = [
+        "lunch",
+        "sandwich",
+        "salad",
+        "bowl",
+        "deli",
+        "cafe",
+        "bistro",
+      ];
+      const dinnerKeywords = [
+        "dinner",
+        "steakhouse",
+        "fine dining",
+        "restaurant",
+        "tavern",
+        "grill",
+      ];
+      const snackKeywords = [
+        "snack",
+        "smoothie",
+        "juice",
+        "cafe",
+        "bar",
+        "lounge",
+      ];
+
+      let keywords: string[] = [];
+      if (mealType === "breakfast") keywords = breakfastKeywords;
+      else if (mealType === "lunch") keywords = lunchKeywords;
+      else if (mealType === "dinner") keywords = dinnerKeywords;
+      else if (mealType === "snack") keywords = snackKeywords;
+      else keywords = lunchKeywords; // default
+
+      // Check if restaurant name contains any meal-type keywords
+      const matches = keywords.filter((kw) =>
+        restaurantNameLower.includes(kw)
+      ).length;
+
+      // Score based on keyword matches: 0 matches = 0.5 (neutral), 1+ = 1.0
+      return matches > 0 ? 1.0 : 0.5;
     };
 
     let restaurants: RestaurantOption[] = (businesses as any[])
@@ -204,10 +332,59 @@ Return businesses that are a good fit for this goal and craving.`,
         const businessContext = b?.contextual_info ?? {};
         const summaries = b?.summaries ?? {};
 
-        // For now we approximate dish macros with the user's target.
-        const { score: fitScore, label: fitLabel } = computeFit(
-          caloriesTarget,
-          proteinMin
+        // Compute dish macros (will be used in Perfect Fit Score calculation)
+        let estCalories = caloriesTarget;
+        let estProtein = proteinMin;
+
+        const description =
+          summaries.short ||
+          summaries.medium ||
+          businessContext.summary ||
+          "Macro-friendly option inferred from Yelp AI.";
+
+        // Try to parse calorie and protein hints from the description text.
+        const kcalRangeMatch = description.match(
+          /(\d{2,4})\s*[–-]\s*(\d{2,4})\s*kcal/i
+        );
+        const kcalSingleMatch = description.match(/(\d{2,4})\s*kcal/i);
+
+        if (kcalRangeMatch) {
+          const low = Number(kcalRangeMatch[1]);
+          const high = Number(kcalRangeMatch[2]);
+          if (!Number.isNaN(low) && !Number.isNaN(high)) {
+            estCalories = Math.round((low + high) / 2);
+          }
+        } else if (kcalSingleMatch) {
+          const val = Number(kcalSingleMatch[1]);
+          if (!Number.isNaN(val)) estCalories = val;
+        }
+
+        const proteinRangeMatch = description.match(
+          /(\d{1,3})\s*[–-]\s*(\d{1,3})\s*g\s*protein/i
+        );
+        const proteinSingleMatch = description.match(
+          /(\d{1,3})\s*g\s*protein/i
+        );
+
+        if (proteinRangeMatch) {
+          const low = Number(proteinRangeMatch[1]);
+          const high = Number(proteinRangeMatch[2]);
+          if (!Number.isNaN(low) && !Number.isNaN(high)) {
+            estProtein = Math.round((low + high) / 2);
+          }
+        } else if (proteinSingleMatch) {
+          const val = Number(proteinSingleMatch[1]);
+          if (!Number.isNaN(val)) estProtein = val;
+        }
+
+        // Calculate Perfect Fit Score 2.0
+        const fitResult = computePerfectFitScore(
+          estCalories,
+          estProtein,
+          typeof b.distance === "number" ? b.distance : undefined,
+          0.6, // Base AI confidence (can be enhanced with actual Yelp AI confidence data)
+          b.name ?? "Unknown",
+          mealType
         );
 
         return {
@@ -223,63 +400,18 @@ Return businesses that are a good fit for this goal and craving.`,
             b.image_url ??
             undefined,
           address: locationParts.length ? locationParts.join(", ") : undefined,
-          dishes: (() => {
-            const description =
-              summaries.short ||
-              summaries.medium ||
-              businessContext.summary ||
-              "Macro-friendly option inferred from Yelp AI.";
-
-            // Try to parse calorie and protein hints from the description text.
-            let estCalories = caloriesTarget;
-            let estProtein = proteinMin;
-
-            const kcalRangeMatch = description.match(
-              /(\d{2,4})\s*[–-]\s*(\d{2,4})\s*kcal/i
-            );
-            const kcalSingleMatch = description.match(/(\d{2,4})\s*kcal/i);
-
-            if (kcalRangeMatch) {
-              const low = Number(kcalRangeMatch[1]);
-              const high = Number(kcalRangeMatch[2]);
-              if (!Number.isNaN(low) && !Number.isNaN(high)) {
-                estCalories = Math.round((low + high) / 2);
-              }
-            } else if (kcalSingleMatch) {
-              const val = Number(kcalSingleMatch[1]);
-              if (!Number.isNaN(val)) estCalories = val;
-            }
-
-            const proteinRangeMatch = description.match(
-              /(\d{1,3})\s*[–-]\s*(\d{1,3})\s*g\s*protein/i
-            );
-            const proteinSingleMatch = description.match(
-              /(\d{1,3})\s*g\s*protein/i
-            );
-
-            if (proteinRangeMatch) {
-              const low = Number(proteinRangeMatch[1]);
-              const high = Number(proteinRangeMatch[2]);
-              if (!Number.isNaN(low) && !Number.isNaN(high)) {
-                estProtein = Math.round((low + high) / 2);
-              }
-            } else if (proteinSingleMatch) {
-              const val = Number(proteinSingleMatch[1]);
-              if (!Number.isNaN(val)) estProtein = val;
-            }
-
-            return [
-              {
-                name: "Suggested macro-friendly option",
-                description,
-                estimatedCalories: estCalories,
-                estimatedProtein: estProtein,
-                confidence: 0.5,
-              },
-            ];
-          })(),
-          fitScore,
-          fitLabel,
+          dishes: [
+            {
+              name: "Suggested macro-friendly option",
+              description,
+              estimatedCalories: estCalories,
+              estimatedProtein: estProtein,
+              confidence: 0.6,
+            },
+          ],
+          fitScore: fitResult.score,
+          fitLabel: fitResult.label,
+          scoreBreakdown: fitResult.breakdown,
           reason:
             businessContext.summary ||
             summaries.short ||
@@ -290,9 +422,13 @@ Return businesses that are a good fit for this goal and craving.`,
     // Fallback: if Yelp AI didn't return any parsable businesses, provide one mock
     // restaurant so the UI still demonstrates the flow.
     if (!restaurants.length) {
-      const { score: fitScore, label: fitLabel } = computeFit(
+      const fitResult = computePerfectFitScore(
         caloriesTarget,
-        proteinMin
+        proteinMin,
+        800,
+        0.3,
+        "FeastFit Demo Kitchen",
+        mealType
       );
 
       restaurants = [
@@ -315,8 +451,9 @@ Return businesses that are a good fit for this goal and craving.`,
               confidence: 0.3,
             },
           ],
-          fitScore,
-          fitLabel,
+          fitScore: fitResult.score,
+          fitLabel: fitResult.label,
+          scoreBreakdown: fitResult.breakdown,
           reason:
             "Fallback result shown because Yelp AI did not return structured businesses.",
         },

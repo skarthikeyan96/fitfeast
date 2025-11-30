@@ -7,6 +7,9 @@ export default function Home() {
   const [caloriesTarget, setCaloriesTarget] = useState(600);
   const [proteinMin, setProteinMin] = useState(35);
   const [diet, setDiet] = useState<string | null>(null);
+  const [mealType, setMealType] = useState<
+    "breakfast" | "lunch" | "dinner" | "snack"
+  >("lunch");
 
   const handlePlan = (e: React.FormEvent) => {
     e.preventDefault();
@@ -15,6 +18,7 @@ export default function Home() {
       location,
       caloriesTarget: String(caloriesTarget),
       proteinMin: String(proteinMin),
+      mealType,
     });
 
     if (diet) {
@@ -28,9 +32,15 @@ export default function Home() {
     <main className="min-h-screen bg-slate-950 text-slate-100">
       <div className="mx-auto flex max-w-3xl flex-col gap-8 px-4 py-12">
         <header className="space-y-3">
-          <p className="text-xs font-semibold uppercase tracking-[0.2em] text-emerald-400">
-            FeastFit · Prototype
-          </p>
+          <div className="flex items-center gap-3 flex-wrap">
+            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-emerald-400">
+              FeastFit
+            </p>
+            <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-500/40 bg-emerald-500/10 px-2.5 py-1 text-[10px] font-semibold text-emerald-300">
+              <div className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse"></div>
+              Perfect Fit Score 2.0™
+            </span>
+          </div>
           <h1 className="text-3xl font-bold md:text-4xl">
             Bridge your meal plan to real-world restaurants.
           </h1>
@@ -97,6 +107,24 @@ export default function Home() {
                 <option value="vegetarian">Vegetarian</option>
                 <option value="pescatarian">Pescatarian</option>
                 <option value="keto">Keto</option>
+              </select>
+            </label>
+
+            <label className="flex flex-col gap-1 text-sm">
+              <span className="text-slate-300">Meal type</span>
+              <select
+                className="rounded-md border border-slate-700 bg-slate-950 px-3 py-2 text-sm outline-none focus:border-emerald-400"
+                value={mealType}
+                onChange={(e) =>
+                  setMealType(
+                    e.target.value as "breakfast" | "lunch" | "dinner" | "snack"
+                  )
+                }
+              >
+                <option value="breakfast">Breakfast</option>
+                <option value="lunch">Lunch</option>
+                <option value="dinner">Dinner</option>
+                <option value="snack">Snack</option>
               </select>
             </label>
 

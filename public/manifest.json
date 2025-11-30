@@ -1,16 +1,21 @@
 {
-  "name": "FeastFit",
+  "name": "FeastFit - Macro-Aware Restaurant Discovery",
   "short_name": "FeastFit",
+  "description": "Find macro-friendly restaurant meals that match your calories and protein goals. Powered by Yelp AI with Perfect Fit Score 2.0™.",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#020617",
   "theme_color": "#22c55e",
-  "description": "FeastFit helps you find macro-friendly restaurant meals that match your calories and protein goals.",
+  "orientation": "portrait-primary",
+  "scope": "/",
   "icons": [
     {
       "src": "/favicon.ico",
       "sizes": "64x64 32x32 24x24 16x16",
-      "type": "image/x-icon"
+      "type": "image/x-icon",
+      "purpose": "any"
     }
-  ]
+  ],
+  "categories": ["food", "health", "lifestyle"],
+  "screenshots": []
 }

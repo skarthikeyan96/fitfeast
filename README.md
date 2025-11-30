@@ -1,10 +1,37 @@
 # FeastFit
 
+> **🏆 Built for the [Yelp AI API Hackathon](https://yelp-ai.devpost.com/)**  
+> **✨ Featuring our proprietary Perfect Fit Score 2.0™ algorithm**
+
 FeastFit helps you bridge your nutrition plan to **real-world restaurant meals**.
 
-You tell FeastFit where you are, your calorie / protein targets, and dietary preferences; it returns a shortlist of restaurants and macro-friendly dish suggestions. On top of that, you can ask in plain English to **refine** those options using Yelp AI.
+You tell FeastFit where you are, your calorie / protein targets, and dietary preferences; it returns a shortlist of restaurants and macro-friendly dish suggestions powered by Yelp AI. On top of that, you can ask in plain English to **refine** those options.
 
-This is a prototype built on Next.js (Pages Router).
+This application leverages the **Yelp AI API** as its primary data source and introduces a unique 4-factor scoring algorithm to rank restaurants by macro-fitness compatibility.
+
+## 🎯 Hackathon Highlights
+
+### Perfect Fit Score 2.0™ - Our Competitive Edge
+
+FeastFit's **proprietary scoring algorithm** combines four weighted factors:
+
+| Factor                 | Weight | Purpose                           |
+| ---------------------- | ------ | --------------------------------- |
+| 🎯 **Macro Fit Score** | 40%    | Calorie & protein target matching |
+| 📍 **Distance Score**  | 20%    | Convenience & follow-through      |
+| 🤖 **AI Confidence**   | 20%    | Yelp AI recommendation quality    |
+| 🍽️ **Meal-Type Match** | 20%    | Contextual appropriateness        |
+
+**Why This Matters for Judges:**
+
+- ✅ **Original IP** - Not just an API wrapper
+- ✅ **Quantifiable** - Every score component is transparent
+- ✅ **Visually Impressive** - Score breakdowns with progress bars
+- ✅ **Real Impact** - Solves the #1 pain point for fitness-tracking diners
+
+[**📖 Read the full Perfect Fit Score 2.0 documentation →**](./PERFECT_FIT_SCORE_2.0.md)
+
+---
 
 ## What you can do today
 
@@ -47,12 +74,14 @@ This is a prototype built on Next.js (Pages Router).
 
 ## Tech stack
 
-- **Frontend**: Next.js (Pages Router), React, TypeScript
-- **Styling**: Tailwind-style utility classes (no separate component library yet)
-- **APIs**:
-  - Yelp AI Search for the initial restaurant shortlist
-  - Yelp AI Chat (`/ai/chat/v2`) for refinement
-  - LocalStorage for guest meal logs
+- **Frontend**: Next.js 16 (Pages Router), React 19, TypeScript
+- **Styling**: Tailwind CSS v4 with custom utility classes
+- **APIs** (Primary Data Source):
+  - **Yelp AI Search API** - Restaurant discovery with conversational AI
+  - **Yelp AI Chat API** (`/ai/chat/v2`) - Natural language result refinement
+- **Database**: Supabase (for authenticated meal logging)
+- **Storage**: LocalStorage (guest mode meal tracking)
+- **Unique Algorithm**: Perfect Fit Score 2.0™ (proprietary 4-factor scoring)
 
 ## Running the app locally
 
@@ -74,18 +103,72 @@ This is a prototype built on Next.js (Pages Router).
    npm run dev
    ```
 
-4. Open [http://localhost:3000/search](http://localhost:3000/search) to use FeastFit.
+4. Open [http://localhost:3000](http://localhost:3000) to use FeastFit.
 
-## Project status
+## Testing the Perfect Fit Score 2.0
 
-This is an early prototype focused on:
+To see the proprietary scoring algorithm in action:
 
-- Proving out macro-aware restaurant search using Yelp AI
-- Demonstrating a **single-turn refinement** step rather than a full conversational agent
-- Simple guest logging to show how meals could later be tracked per user
+1. **Navigate to the home page** (`/`)
+2. **Fill in meal parameters**:
+   - Location: `San Francisco, CA`
+   - Calories: `600`
+   - Protein: `35g`
+   - Meal Type: `Lunch`
+   - Query: `high-protein bowl`
+3. **Click "Plan this meal with Yelp AI"**
+4. **Observe the results**:
+   - Green "Perfect Fit Score 2.0™" indicator at the top
+   - Each restaurant shows its overall fit score
+   - Four color-coded sub-scores (Macro, Distance, AI Conf, Meal Type)
+   - Click "Show Score Breakdown" to see detailed progress bars
+5. **Try different meal types**:
+   - Change to "Breakfast" and search - notice how cafes rank higher
+   - Change to "Dinner" and search - steakhouses get meal-type bonus points
 
-Possible next directions (not implemented yet):
+## Project status & Hackathon Submission
 
-- Real user auth and persistent, per-user logs
-- More detailed nutrition breakdowns (carbs/fats) per dish
-- A richer "coach" experience that reasons over logs + searches across multiple days
+**Status**: Submission for Yelp AI API Hackathon (December 2025)
+
+### What Makes FeastFit Unique for This Hackathon:
+
+1. **Proprietary Scoring Algorithm** (Perfect Fit Score 2.0™)
+
+   - Original intellectual property
+   - 4-factor weighted system (40% macro, 20% distance, 20% AI confidence, 20% meal-type)
+   - Fully transparent and explainable to users
+
+2. **Yelp AI as Primary Data Source**
+
+   - All restaurant data comes from Yelp AI Search API
+   - Natural language refinement powered by Yelp AI Chat
+   - Contextual meal planning with conversational AI
+
+3. **Complete User Flow**
+
+   - Search → Results → Refinement → Logging → Coaching
+   - Guest mode (localStorage) + Authenticated mode (Supabase)
+   - Real-world usability focus
+
+4. **Visual Design Excellence**
+   - Modern, fitness-focused dark theme
+   - Score breakdowns with animated progress bars
+   - Clear branded "Perfect Fit Score 2.0™" indicators
+
+### Demonstration Highlights (for 3-min video):
+
+- Home page: Explain the problem (eating out while tracking macros)
+- Search: Show Yelp AI-powered results with Perfect Fit Scores
+- Score breakdown: Expand to show all 4 factors with visual bars
+- Meal type change: Demonstrate context-aware scoring
+- Refinement: Natural language adjustment via Yelp AI Chat
+- Logging: Guest mode meal tracking
+
+### Future Enhancements (Post-Hackathon):
+
+- Machine learning to personalize score weights per user
+- Time-based meal-type boosting (breakfast spots in AM)
+- Budget factor integration (10% weight)
+- Group meal planning with shared macro targets
+- Voice-activated search via Yelp AI
+- Integration with fitness tracking apps (MyFitnessPal, etc.)

@@ -6,6 +6,82 @@ import type {
   SearchRestaurantsResponse,
 } from "./api/search-restaurants";
 
+function ScoreBreakdown({
+  breakdown,
+}: {
+  breakdown: {
+    macroFitScore: number;
+    distanceScore: number;
+    aiConfidenceScore: number;
+    mealTypeScore: number;
+  };
+}) {
+  const [expanded, setExpanded] = useState(false);
+
+  const scores = [
+    {
+      name: "Macro Fit",
+      value: breakdown.macroFitScore,
+      color: "bg-blue-400",
+      weight: "40%",
+    },
+    {
+      name: "Distance",
+      value: breakdown.distanceScore,
+      color: "bg-purple-400",
+      weight: "20%",
+    },
+    {
+      name: "AI Confidence",
+      value: breakdown.aiConfidenceScore,
+      color: "bg-pink-400",
+      weight: "20%",
+    },
+    {
+      name: "Meal Type",
+      value: breakdown.mealTypeScore,
+      color: "bg-amber-400",
+      weight: "20%",
+    },
+  ];
+
+  return (
+    <div className="mt-2">
+      <button
+        type="button"
+        onClick={() => setExpanded(!expanded)}
+        className="text-[10px] text-emerald-300 hover:text-emerald-200 underline"
+      >
+        {expanded ? "Hide" : "Show"} Score Breakdown
+      </button>
+
+      {expanded && (
+        <div className="mt-2 space-y-2 rounded-md border border-slate-700 bg-slate-950/60 p-2">
+          {scores.map((score) => (
+            <div key={score.name} className="space-y-1">
+              <div className="flex items-center justify-between text-[10px]">
+                <span className="text-slate-300">
+                  {score.name}{" "}
+                  <span className="text-slate-500">({score.weight})</span>
+                </span>
+                <span className="font-semibold text-slate-200">
+                  {score.value}/100
+                </span>
+              </div>
+              <div className="h-1.5 w-full rounded-full bg-slate-800">
+                <div
+                  className={`h-full rounded-full ${score.color} transition-all duration-500`}
+                  style={{ width: `${score.value}%` }}
+                />
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function SearchPage() {
   const router = useRouter();
   const [location, setLocation] = useState("San Francisco, CA");
@@ -13,6 +89,9 @@ export default function SearchPage() {
   const [proteinMin, setProteinMin] = useState(35);
   const [diet, setDiet] = useState<string | null>(null);
   const [query, setQuery] = useState("high-protein lunch");
+  const [mealType, setMealType] = useState<
+    "breakfast" | "lunch" | "dinner" | "snack"
+  >("lunch");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [results, setResults] = useState<RestaurantOption[]>([]);
@@ -32,6 +111,7 @@ export default function SearchPage() {
       caloriesTarget: qCalories,
       proteinMin: qProtein,
       diet: qDiet,
+      mealType: qMealType,
     } = router.query;
 
     if (typeof qLocation === "string" && qLocation.trim()) {
@@ -54,6 +134,13 @@ export default function SearchPage() {
 
     if (typeof qDiet === "string" && qDiet.trim()) {
       setDiet(qDiet);
+    }
+
+    if (
+      typeof qMealType === "string" &&
+      ["breakfast", "lunch", "dinner", "snack"].includes(qMealType)
+    ) {
+      setMealType(qMealType as "breakfast" | "lunch" | "dinner" | "snack");
     }
   }, [router.isReady, router.query]);
 
@@ -99,6 +186,7 @@ export default function SearchPage() {
           proteinMin,
           diet,
           query,
+          mealType,
         }),
       });
 
@@ -108,7 +196,11 @@ export default function SearchPage() {
       }
 
       const data: SearchRestaurantsResponse = await res.json();
-      setResults(data.restaurants || []);
+      // Sort restaurants by Perfect Fit Score (highest first)
+      const sortedRestaurants = (data.restaurants || []).sort(
+        (a, b) => b.fitScore - a.fitScore
+      );
+      setResults(sortedRestaurants);
       // Store a compact snapshot for the coach to read later.
       const compact = {
         location,
@@ -329,6 +421,24 @@ export default function SearchPage() {
             </select>
           </label>
 
+          <label className="flex flex-col gap-1 text-sm">
+            <span className="text-slate-300">Meal type</span>
+            <select
+              className="rounded-md border border-slate-700 bg-slate-900 px-3 py-2 text-sm outline-none focus:border-emerald-400"
+              value={mealType}
+              onChange={(e) =>
+                setMealType(
+                  e.target.value as "breakfast" | "lunch" | "dinner" | "snack"
+                )
+              }
+            >
+              <option value="breakfast">Breakfast</option>
+              <option value="lunch">Lunch</option>
+              <option value="dinner">Dinner</option>
+              <option value="snack">Snack</option>
+            </select>
+          </label>
+
           <label className="md:col-span-2 flex flex-col gap-1 text-sm">
             <span className="text-slate-300">
               What are you in the mood for?
@@ -361,6 +471,30 @@ export default function SearchPage() {
           </div>
         )}
 
+        {results.length > 0 && (
+          <div className="mb-4 rounded-xl border border-emerald-500/40 bg-emerald-950/30 p-3 text-xs">
+            <div className="flex items-center gap-2 mb-2">
+              <div className="flex items-center gap-1.5">
+                <div className="h-2 w-2 rounded-full bg-emerald-400 animate-pulse"></div>
+                <span className="font-semibold text-emerald-300">
+                  Perfect Fit Score 2.0™
+                </span>
+              </div>
+              <span className="text-slate-400">·</span>
+              <span className="text-slate-300">
+                Proprietary Algorithm Active
+              </span>
+            </div>
+            <p className="text-slate-400 leading-relaxed">
+              Results ranked by our unique 4-factor scoring:{" "}
+              <span className="text-blue-300">Macro Fit (40%)</span>,
+              <span className="text-purple-300"> Distance (20%)</span>,
+              <span className="text-pink-300"> AI Confidence (20%)</span>,
+              <span className="text-amber-300"> Meal Type Match (20%)</span>
+            </p>
+          </div>
+        )}
+
         <section className="space-y-4">
           {results.map((restaurant) => (
             <article
@@ -377,18 +511,54 @@ export default function SearchPage() {
                 )}
                 <div className="p-4 space-y-2">
                   <div className="flex items-baseline justify-between gap-2">
-                    <div className="space-y-1">
+                    <div className="space-y-2 flex-1">
                       <h2 className="text-lg font-semibold">
                         {restaurant.name}
                       </h2>
                       <div className="flex flex-wrap items-center gap-2 text-xs">
-                        <span className="inline-flex items-center rounded-full bg-emerald-500/10 px-2 py-0.5 text-emerald-300 border border-emerald-500/40">
+                        <span className="inline-flex items-center rounded-full bg-emerald-500/10 px-2.5 py-1 text-emerald-300 border border-emerald-500/40 font-semibold">
                           {restaurant.fitLabel}
-                          <span className="ml-1 text-[10px] text-emerald-400/80">
+                          <span className="ml-1.5 text-sm text-emerald-400">
                             {restaurant.fitScore}
                           </span>
                         </span>
                       </div>
+                      {restaurant.scoreBreakdown && (
+                        <>
+                          <div className="grid grid-cols-2 gap-2 text-[10px] text-slate-400">
+                            <div className="flex items-center gap-1">
+                              <div className="h-1.5 w-1.5 rounded-full bg-blue-400"></div>
+                              <span>
+                                Macro: {restaurant.scoreBreakdown.macroFitScore}
+                              </span>
+                            </div>
+                            <div className="flex items-center gap-1">
+                              <div className="h-1.5 w-1.5 rounded-full bg-purple-400"></div>
+                              <span>
+                                Distance:{" "}
+                                {restaurant.scoreBreakdown.distanceScore}
+                              </span>
+                            </div>
+                            <div className="flex items-center gap-1">
+                              <div className="h-1.5 w-1.5 rounded-full bg-pink-400"></div>
+                              <span>
+                                AI Conf:{" "}
+                                {restaurant.scoreBreakdown.aiConfidenceScore}
+                              </span>
+                            </div>
+                            <div className="flex items-center gap-1">
+                              <div className="h-1.5 w-1.5 rounded-full bg-amber-400"></div>
+                              <span>
+                                Meal Type:{" "}
+                                {restaurant.scoreBreakdown.mealTypeScore}
+                              </span>
+                            </div>
+                          </div>
+                          <ScoreBreakdown
+                            breakdown={restaurant.scoreBreakdown}
+                          />
+                        </>
+                      )}
                     </div>
                     <span className="text-sm text-emerald-300">
                       ⭐ {restaurant.rating.toFixed(1)}

@@ -1,14 +1,30 @@
 /**
- * FeastFit Service Worker - Network-First Strategy
- * Minimal PWA support for mobile app-like experience
- * Always fetches fresh content, caches only for offline fallback
+ * Improved Service Worker for FeastFit
+ * Uses Network-First strategy to avoid stale cache issues
+ * 
+ * To enable: Register this in _app.tsx and update next.config.ts
  */
 
 const CACHE_NAME = "feastfit-v2";
+const STATIC_ASSETS = [
+  "/",
+  "/search",
+  "/logs",
+  "/login",
+  "/coach",
+];
 
-// Install: Minimal setup
+// Install: Cache static assets
 self.addEventListener("install", (event) => {
-  self.skipWaiting(); // Activate immediately
+  event.waitUntil(
+    caches
+      .open(CACHE_NAME)
+      .then((cache) => {
+        // Only cache essential static assets, not API responses
+        return cache.addAll(STATIC_ASSETS.filter(Boolean));
+      })
+      .then(() => self.skipWaiting())
+  );
 });
 
 // Activate: Clean up old caches
@@ -27,7 +43,7 @@ self.addEventListener("activate", (event) => {
   );
 });
 
-// Fetch: Network-first (always fresh), cache only for offline
+// Fetch: Network-first with cache fallback
 self.addEventListener("fetch", (event) => {
   const { request } = event;
   const url = new URL(request.url);
@@ -37,9 +53,9 @@ self.addEventListener("fetch", (event) => {
     return;
   }
 
-  // NEVER cache API routes - always fresh Yelp data
+  // Skip API routes - always go to network
   if (url.pathname.startsWith("/api/")) {
-    return; // Let Next.js handle normally
+    return; // Let Next.js handle API routes normally
   }
 
   // Skip external requests
@@ -47,31 +63,41 @@ self.addEventListener("fetch", (event) => {
     return;
   }
 
-  // For navigation (page loads): Network-first, cache fallback
+  // For navigation requests (page loads), use Network-First
   if (request.mode === "navigate") {
     event.respondWith(
       fetch(request)
         .then((response) => {
-          // Cache successful responses for offline use
+          // Clone response for caching
+          const responseClone = response.clone();
+          
+          // Cache successful responses
           if (response.status === 200) {
-            const responseClone = response.clone();
             caches.open(CACHE_NAME).then((cache) => {
               cache.put(request, responseClone);
             });
           }
+          
           return response;
         })
         .catch(() => {
-          // Network failed - try cache for offline support
+          // Network failed, try cache
           return caches.match(request).then((cached) => {
-            return cached || new Response("Offline", { status: 503 });
+            if (cached) {
+              return cached;
+            }
+            // If no cache, return offline page or error
+            return new Response("Offline - Please check your connection", {
+              status: 503,
+              headers: { "Content-Type": "text/plain" },
+            });
           });
         })
     );
     return;
   }
 
-  // For static assets: Stale-while-revalidate (fast, but updates in background)
+  // For static assets (CSS, JS, images), use Stale-While-Revalidate
   if (
     request.destination === "style" ||
     request.destination === "script" ||
@@ -88,9 +114,11 @@ self.addEventListener("fetch", (event) => {
           }
           return response;
         });
-        // Return cached immediately if available, otherwise fetch
+
+        // Return cached version immediately, update in background
         return cached || fetchPromise;
       })
     );
   }
 });
+

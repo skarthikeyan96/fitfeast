@@ -47,6 +47,22 @@ function Shell({ children }: { children: React.ReactNode }) {
 }
 
 export default function App({ Component, pageProps }: AppProps) {
+  useEffect(() => {
+    if (typeof window === "undefined" || !("serviceWorker" in navigator)) {
+      return;
+    }
+
+    const register = async () => {
+      try {
+        await navigator.serviceWorker.register("/sw.js");
+      } catch (err) {
+        console.error("Service worker registration failed", err);
+      }
+    };
+
+    register();
+  }, []);
+
   return (
     <Shell>
       <Component {...pageProps} />

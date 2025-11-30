@@ -1,5 +1,13 @@
 import type { NextApiRequest, NextApiResponse } from "next";
 
+// Simple in-memory rate limiting per process to protect Yelp AI usage.
+const WINDOW_MS = 60_000; // 1 minute
+const MAX_REQ_PER_WINDOW = 10;
+const rateLimitStore = new Map<
+  string,
+  { count: number; windowStart: number }
+>();
+
 export type SearchRestaurantsRequest = {
   location: string;
   caloriesTarget: number;
@@ -60,6 +68,34 @@ export default async function handler(
       radiusMeters,
       priceLevels,
     } = req.body as SearchRestaurantsRequest;
+
+    // Apply naive IP-based rate limiting.
+    const ip =
+      (req.headers["x-forwarded-for"] as string | undefined)
+        ?.split(",")[0]
+        ?.trim() ||
+      req.socket.remoteAddress ||
+      "unknown";
+
+    const now = Date.now();
+    const existing = rateLimitStore.get(ip) ?? {
+      count: 0,
+      windowStart: now,
+    };
+
+    if (now - existing.windowStart > WINDOW_MS) {
+      existing.count = 0;
+      existing.windowStart = now;
+    }
+
+    existing.count += 1;
+    rateLimitStore.set(ip, existing);
+
+    if (existing.count > MAX_REQ_PER_WINDOW) {
+      return res
+        .status(429)
+        .json({ error: "Rate limit exceeded. Please try again in a moment." });
+    }
 
     if (!location || !caloriesTarget || !proteinMin || !query) {
       return res.status(400).json({ error: "Missing required fields" });
@@ -187,19 +223,61 @@ Return businesses that are a good fit for this goal and craving.`,
             b.image_url ??
             undefined,
           address: locationParts.length ? locationParts.join(", ") : undefined,
-          dishes: [
-            {
-              name: "Suggested macro-friendly option",
-              description:
-                summaries.short ||
-                summaries.medium ||
-                businessContext.summary ||
-                "Macro-friendly option inferred from Yelp AI.",
-              estimatedCalories: caloriesTarget,
-              estimatedProtein: proteinMin,
-              confidence: 0.5,
-            },
-          ],
+          dishes: (() => {
+            const description =
+              summaries.short ||
+              summaries.medium ||
+              businessContext.summary ||
+              "Macro-friendly option inferred from Yelp AI.";
+
+            // Try to parse calorie and protein hints from the description text.
+            let estCalories = caloriesTarget;
+            let estProtein = proteinMin;
+
+            const kcalRangeMatch = description.match(
+              /(\d{2,4})\s*[–-]\s*(\d{2,4})\s*kcal/i
+            );
+            const kcalSingleMatch = description.match(/(\d{2,4})\s*kcal/i);
+
+            if (kcalRangeMatch) {
+              const low = Number(kcalRangeMatch[1]);
+              const high = Number(kcalRangeMatch[2]);
+              if (!Number.isNaN(low) && !Number.isNaN(high)) {
+                estCalories = Math.round((low + high) / 2);
+              }
+            } else if (kcalSingleMatch) {
+              const val = Number(kcalSingleMatch[1]);
+              if (!Number.isNaN(val)) estCalories = val;
+            }
+
+            const proteinRangeMatch = description.match(
+              /(\d{1,3})\s*[–-]\s*(\d{1,3})\s*g\s*protein/i
+            );
+            const proteinSingleMatch = description.match(
+              /(\d{1,3})\s*g\s*protein/i
+            );
+
+            if (proteinRangeMatch) {
+              const low = Number(proteinRangeMatch[1]);
+              const high = Number(proteinRangeMatch[2]);
+              if (!Number.isNaN(low) && !Number.isNaN(high)) {
+                estProtein = Math.round((low + high) / 2);
+              }
+            } else if (proteinSingleMatch) {
+              const val = Number(proteinSingleMatch[1]);
+              if (!Number.isNaN(val)) estProtein = val;
+            }
+
+            return [
+              {
+                name: "Suggested macro-friendly option",
+                description,
+                estimatedCalories: estCalories,
+                estimatedProtein: estProtein,
+                confidence: 0.5,
+              },
+            ];
+          })(),
           fitScore,
           fitLabel,
           reason:

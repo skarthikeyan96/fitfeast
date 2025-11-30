@@ -1,3 +1,4 @@
+// pages/auth/callback.tsx
 import { useEffect, useState } from "react";
 import { useRouter } from "next/router";
 import { supabaseBrowser } from "../../lib/supabaseBrowserClient";
@@ -14,6 +15,38 @@ export default function AuthCallbackPage() {
       }
 
       try {
+        // Parse access_token and refresh_token from hash fragment
+        const hash = window.location.hash ?? "";
+        const params = new URLSearchParams(hash.replace(/^#/, ""));
+        const access_token = params.get("access_token");
+        const refresh_token = params.get("refresh_token");
+
+        if (!access_token || !refresh_token) {
+          console.error("Missing tokens in callback URL", {
+            access_token,
+            refresh_token,
+          });
+          setStatus(
+            "Could not verify login (missing tokens). Please try again from the login page."
+          );
+          return;
+        }
+
+        // Store the session in Supabase
+        const { error: sessionError } = await supabaseBrowser.auth.setSession({
+          access_token,
+          refresh_token,
+        });
+
+        if (sessionError) {
+          console.error("setSession error", sessionError);
+          setStatus(
+            "Could not verify login. Please try again from the login page."
+          );
+          return;
+        }
+
+        // Now the user should be available
         const {
           data: { user },
           error,

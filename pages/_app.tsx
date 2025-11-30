@@ -35,6 +35,9 @@ function Shell({ children }: { children: React.ReactNode }) {
             <Link href="/logs" className="hover:text-emerald-300">
               Logs
             </Link>
+            <Link href="/coach" className="hover:text-emerald-300">
+              Coach
+            </Link>
 
             <Link href="/login" className="hover:text-emerald-300">
               {hasUser ? "Account" : "Login"}

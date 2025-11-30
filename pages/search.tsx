@@ -136,9 +136,9 @@ export default function SearchPage() {
           JSON.stringify(compact)
         );
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error(err);
-      setError(err.message || "Something went wrong");
+      setError(err instanceof Error ? err.message : "Something went wrong");
     } finally {
       setLoading(false);
     }
@@ -220,9 +220,9 @@ export default function SearchPage() {
       }
 
       setLogMessage("Meal logged to your FeastFit account.");
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error(err);
-      setLogMessage(err.message || "Failed to log meal");
+      setLogMessage(err instanceof Error ? err.message : "Failed to log meal");
     }
   };
 
@@ -260,9 +260,9 @@ export default function SearchPage() {
       const data = (await res.json()) as { message: string };
       setRefineResponse(data.message);
       setRefineMessage("");
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error(err);
-      setError(err.message || "Failed to refine results");
+      setError(err instanceof Error ? err.message : "Failed to refine results");
     } finally {
       setRefineLoading(false);
     }
@@ -446,8 +446,9 @@ export default function SearchPage() {
               Refine these results with FeastFit
             </h2>
             <p className="text-xs text-slate-400">
-              Ask in your own words, e.g. "Make it lower carb" or "Prefer
-              something closer to 800 kcal but still high protein".
+              Ask in your own words, e.g. &quot;Make it lower carb&quot; or
+              &quot;Prefer something closer to 800 kcal but still high
+              protein&quot;.
             </p>
             <form
               onSubmit={handleRefine}

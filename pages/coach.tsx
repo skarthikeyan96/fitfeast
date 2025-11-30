@@ -70,12 +70,15 @@ export default function CoachPage() {
         content: data.reply,
       };
       setMessages((prev) => [...prev, coachMessage]);
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error(err);
       const errorMessage: Message = {
         id: `e-${Date.now()}`,
         role: "coach",
-        content: err.message || "Something went wrong. Try again.",
+        content:
+          err instanceof Error
+            ? err.message
+            : "Something went wrong. Try again.",
       };
       setMessages((prev) => [...prev, errorMessage]);
     } finally {

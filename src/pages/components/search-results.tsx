@@ -24,7 +24,7 @@ interface SearchResultsProps {
   canLog?: boolean;
 }
 
-export function SearchResults({
+export default function SearchResults({
   hasSearched,
   isSearching,
   results,

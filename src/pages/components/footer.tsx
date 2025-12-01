@@ -8,7 +8,7 @@ const links = [
   { label: "Privacy", href: "#" },
 ];
 
-export function Footer() {
+export default function Footer() {
   return (
     <footer className="py-12 bg-card border-t border-border">
       <div className="container mx-auto px-4">

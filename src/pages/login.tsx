@@ -1,5 +1,5 @@
 import { FormEvent, useEffect, useState } from "react";
-import { supabaseBrowser } from "../lib/supabaseBrowserClient";
+import { supabaseBrowser } from "../../lib/supabaseBrowserClient";
 import Link from "next/link";
 
 export default function LoginPage() {

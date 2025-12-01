@@ -24,7 +24,7 @@ const steps = [
   },
 ];
 
-export function HowItWorksSection() {
+export default function HowItWorksSection() {
   return (
     <section className="py-24 bg-card">
       <div className="container mx-auto px-4">

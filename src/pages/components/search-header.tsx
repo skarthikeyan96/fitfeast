@@ -3,7 +3,7 @@ import { Utensils } from "lucide-react";
 import { useRouter } from "next/router";
 import { useEffect, useState } from "react";
 
-export function SearchHeader() {
+export default function SearchHeader() {
   const router = useRouter();
   const [mounted, setMounted] = useState(false);
   const [hasUser, setHasUser] = useState(false);
@@ -59,4 +59,3 @@ export function SearchHeader() {
     </header>
   );
 }
-

@@ -5,8 +5,8 @@ import type {
   RestaurantOption,
   SearchRestaurantsResponse,
 } from "./api/search-restaurants";
-import { SearchForm } from "./components/search-form";
-import { SearchResults } from "./components/search-results";
+import SearchForm from "./components/search-form";
+import SearchResults from "./components/search-results";
 
 export default function SearchPage() {
   const router = useRouter();

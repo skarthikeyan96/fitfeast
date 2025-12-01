@@ -45,7 +45,7 @@ interface SearchFormProps {
   };
 }
 
-export function SearchForm({
+export default function SearchForm({
   onSearch,
   isSearching,
   initialData,

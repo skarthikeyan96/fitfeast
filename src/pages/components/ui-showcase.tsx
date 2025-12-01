@@ -39,7 +39,7 @@ const screenshots = [
   },
 ];
 
-export function UIShowcaseSection() {
+export default function UIShowcaseSection() {
   return (
     <section className="py-24 bg-card overflow-hidden">
       <div className="container mx-auto px-4">

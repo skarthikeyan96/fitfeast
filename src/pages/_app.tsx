@@ -3,7 +3,7 @@ import type { AppProps } from "next/app";
 import { useRouter } from "next/router";
 import { useEffect, useState } from "react";
 import { Inter, Geist_Mono } from "next/font/google";
-import { SearchHeader } from "./components/search-header";
+import SearchHeader from "./components/search-header";
 
 // Load Google Fonts
 const inter = Inter({

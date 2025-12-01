@@ -1,8 +1,8 @@
-import { HeroSection } from "./components/hero-section";
-import { HowItWorksSection } from "./components/how-it-works";
-import { FeaturesSection } from "./components/features";
-import { UIShowcaseSection } from "./components/ui-showcase";
-import { Footer } from "./components/footer";
+import HeroSection from "./components/hero-section";
+import HowItWorksSection from "./components/how-it-works";
+import FeaturesSection from "./components/features";
+import UIShowcaseSection from "./components/ui-showcase";
+import Footer from "./components/footer";
 
 export default function Home() {
   return (

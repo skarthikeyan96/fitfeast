@@ -33,7 +33,7 @@ const features = [
   },
 ];
 
-export function FeaturesSection() {
+export default function FeaturesSection() {
   return (
     <section className="py-24 bg-background">
       <div className="container mx-auto px-4">

@@ -1,5 +1,5 @@
 import type { NextApiRequest, NextApiResponse } from "next";
-import { getSupabaseClient } from "../../lib/supabaseClient";
+import { getSupabaseClient } from "../../../lib/supabaseClient";
 import type { DishOption, RestaurantOption } from "./search-restaurants";
 
 export type LogMealRequest = {

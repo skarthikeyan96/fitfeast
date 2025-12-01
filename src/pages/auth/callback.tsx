@@ -1,7 +1,7 @@
 // pages/auth/callback.tsx
 import { useEffect, useState } from "react";
 import { useRouter } from "next/router";
-import { supabaseBrowser } from "../../lib/supabaseBrowserClient";
+import { supabaseBrowser } from "../../../lib/supabaseBrowserClient";
 
 export default function AuthCallbackPage() {
   const router = useRouter();
